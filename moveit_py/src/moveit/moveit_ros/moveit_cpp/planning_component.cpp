@@ -46,7 +46,8 @@ plan(std::shared_ptr<moveit_cpp::PlanningComponent>& planning_component,
      std::shared_ptr<moveit_cpp::PlanningComponent::PlanRequestParameters>& single_plan_parameters,
      std::shared_ptr<moveit_cpp::PlanningComponent::MultiPipelinePlanRequestParameters>& multi_plan_parameters,
      std::optional<const moveit_cpp::PlanningComponent::SolutionCallbackFunction> solution_selection_callback,
-     std::optional<moveit_cpp::PlanningComponent::StoppingCriterionFunction> stopping_criterion_callback)
+     std::optional<moveit_cpp::PlanningComponent::StoppingCriterionFunction> stopping_criterion_callback,
+     planning_scene::PlanningScenePtr& planning_scene)
 {
   // parameter argument checking
   if (single_plan_parameters && multi_plan_parameters)
@@ -60,8 +61,7 @@ plan(std::shared_ptr<moveit_cpp::PlanningComponent>& planning_component,
     // cast parameters
     std::shared_ptr<const moveit_cpp::PlanningComponent::PlanRequestParameters> const_single_plan_parameters =
         std::const_pointer_cast<const moveit_cpp::PlanningComponent::PlanRequestParameters>(single_plan_parameters);
-
-    return planning_component->plan(*const_single_plan_parameters);
+    return planning_component->plan(*const_single_plan_parameters, planning_scene);
   }
   else if (multi_plan_parameters)
   {
@@ -321,7 +321,9 @@ void init_planning_component(py::module& m)
       // TODO (peterdavidfagan): improve the plan API
       .def("plan", &moveit_py::bind_planning_component::plan, py::arg("single_plan_parameters") = nullptr,
            py::arg("multi_plan_parameters") = nullptr, py::arg("solution_selection_callback") = nullptr,
-           py::arg("stopping_criterion_callback") = nullptr, py::return_value_policy::move,
+           py::arg("stopping_criterion_callback") = nullptr,
+           py::arg("planning_scene") = nullptr, 
+           py::return_value_policy::move,
            R"(
       	   Plan a motion plan using the current start and goal states.
       	   Args:

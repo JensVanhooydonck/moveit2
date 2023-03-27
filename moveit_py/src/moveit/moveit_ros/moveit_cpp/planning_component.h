@@ -52,6 +52,7 @@
 #include "moveit_cpp.h"
 #include "../planning_scene_monitor/planning_scene_monitor.h"
 #include "../../moveit_core/planning_interface/planning_response.h"
+#include "../../moveit_core/planning_scene/planning_scene.h"
 
 namespace py = pybind11;
 
@@ -64,7 +65,8 @@ plan(std::shared_ptr<moveit_cpp::PlanningComponent>& planning_component,
      std::shared_ptr<moveit_cpp::PlanningComponent::PlanRequestParameters>& single_plan_parameters,
      std::shared_ptr<moveit_cpp::PlanningComponent::MultiPipelinePlanRequestParameters>& multi_plan_parameters,
      std::optional<const moveit_cpp::PlanningComponent::SolutionCallbackFunction> solution_selection_callback,
-     std::optional<moveit_cpp::PlanningComponent::StoppingCriterionFunction> stopping_criterion_callback);
+     std::optional<moveit_cpp::PlanningComponent::StoppingCriterionFunction> stopping_criterion_callback,
+     planning_scene::PlanningScenePtr& planning_scene);
 
 bool set_goal(std::shared_ptr<moveit_cpp::PlanningComponent>& planning_component,
               std::optional<std::string> configuration_name, std::optional<moveit::core::RobotState> robot_state,
