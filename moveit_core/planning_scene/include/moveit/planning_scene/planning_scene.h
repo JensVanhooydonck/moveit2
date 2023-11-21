@@ -294,6 +294,8 @@ public:
   /** \brief Get the allowed collision matrix */
   collision_detection::AllowedCollisionMatrix& getAllowedCollisionMatrixNonConst();
 
+  /** \brief Get the allowed collision matrix pointer */
+  collision_detection::AllowedCollisionMatrixPtr& getAllowedCollisionMatrixNonConstPtr();
   /**@}*/
 
   /**
