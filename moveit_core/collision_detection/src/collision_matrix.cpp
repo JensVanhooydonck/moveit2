@@ -483,4 +483,16 @@ void AllowedCollisionMatrix::print(std::ostream& out) const
   }
 }
 
+bool AllowedCollisionMatrix::compare(moveit_msgs::msg::AllowedCollisionMatrix& msg) {
+  for (std::size_t j = 0; j < msg.entry_names.size(); ++j)
+  {
+    // Check if entry name is in entries_
+    if(entries_.find(msg.entry_names[j]) == entries_.end())
+      return false;
+    // TODO: check if same value
+
+  }
+  return true;
+}
+
 }  // end of namespace collision_detection
