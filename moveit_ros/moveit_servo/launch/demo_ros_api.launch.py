@@ -12,6 +12,8 @@ def generate_launch_description():
     moveit_config = (
         MoveItConfigsBuilder("moveit_resources_panda")
         .robot_description(file_path="config/panda.urdf.xacro")
+        .joint_limits()
+        .robot_description_kinematics()
         .to_moveit_configs()
     )
 
@@ -56,7 +58,10 @@ def generate_launch_description():
     ros2_control_node = launch_ros.actions.Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[moveit_config.robot_description, ros2_controllers_path],
+        parameters=[ros2_controllers_path],
+        remappings=[
+            ("/controller_manager/robot_description", "/robot_description"),
+        ],
         output="screen",
     )
 
@@ -97,6 +102,7 @@ def generate_launch_description():
                     moveit_config.robot_description,
                     moveit_config.robot_description_semantic,
                     moveit_config.robot_description_kinematics,
+                    moveit_config.joint_limits,
                 ],
                 condition=UnlessCondition(launch_as_standalone_node),
             ),
@@ -127,6 +133,7 @@ def generate_launch_description():
             moveit_config.robot_description,
             moveit_config.robot_description_semantic,
             moveit_config.robot_description_kinematics,
+            moveit_config.joint_limits,
         ],
         output="screen",
         condition=IfCondition(launch_as_standalone_node),
