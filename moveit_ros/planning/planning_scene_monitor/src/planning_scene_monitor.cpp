@@ -796,7 +796,7 @@ bool PlanningSceneMonitor::processCollisionObjectMsg(const moveit_msgs::msg::Col
       scene_->setObjectColor(color_msg.value().id, color_msg.value().color);
   }
   triggerSceneUpdateEvent(UPDATE_GEOMETRY);
-  RCLCPP_INFO(logger_, "Published update collision object");
+  RCLCPP_DEBUG(logger_, "Published update collision object");
   return true;
 }
 
@@ -816,7 +816,7 @@ bool PlanningSceneMonitor::processAttachedCollisionObjectMsg(
       return false;
   }
   triggerSceneUpdateEvent(UPDATE_GEOMETRY);
-  RCLCPP_INFO(logger_, "Published update attached");
+  RCLCPP_DEBUG(logger_, "Published update attached");
   return true;
 }
 
