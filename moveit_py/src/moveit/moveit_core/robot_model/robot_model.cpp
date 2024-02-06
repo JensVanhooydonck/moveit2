@@ -40,6 +40,7 @@
 #include <srdfdom/model.h>
 #include <srdfdom/srdf_writer.h>
 #include <moveit/robot_model/robot_model.h>
+#include <moveit/robot_model_loader/robot_model_loader.h>
 
 namespace moveit_py
 {
@@ -54,29 +55,87 @@ void initRobotModel(py::module& m)
           Representation of a kinematic model.
           )")
       // TODO (peterdavidfagan): rewrite with RobotModelLoader.
-      .def(py::init([](std::string& urdf_xml_path, std::string& srdf_xml_path) {
-             // Read in URDF
-             std::string xml_string;
-             std::fstream xml_file(urdf_xml_path.c_str(), std::fstream::in);
-             while (xml_file.good())
+      .def(py::init([](std::shared_ptr<moveit_cpp::MoveItCpp>& moveit_cpp, std::optional<std::string> urdf_xml_path,
+                       std::optional<std::string> srdf_xml_path, std::string& robot_description) {
+             const rclcpp::Node::SharedPtr& node = moveit_cpp->getNode();
+             if (urdf_xml_path && !urdf_xml_path->empty() && srdf_xml_path && !srdf_xml_path->empty())
              {
-               std::string line;
-               std::getline(xml_file, line);
-               xml_string += (line + "\n");
+               // Read in URDF
+               std::string xml_string;
+               std::fstream xml_file(urdf_xml_path->c_str(), std::fstream::in);
+               while (xml_file.good())
+               {
+                 std::string line;
+                 std::getline(xml_file, line);
+                 xml_string += (line + "\n");
+               }
+               xml_file.close();
+               RCLCPP_INFO(node->get_logger(), "Set URDF String");
+               // opt.urdf_string_ = xml_string;
+
+               // Read in URDF
+               std::string srdf_xml_string;
+               std::fstream srdf_xml_file(srdf_xml_path->c_str(), std::fstream::in);
+               while (srdf_xml_file.good())
+               {
+                 std::string line;
+                 std::getline(srdf_xml_file, line);
+                 srdf_xml_string += (line + "\n");
+               }
+               srdf_xml_file.close();
+               // opt.srdf_string = srdf_xml_string;
+               RCLCPP_INFO(node->get_logger(), "Set SRDF String");
+
+               robot_model_loader::RobotModelLoader::Options opt(xml_string, srdf_xml_string);
+
+              auto robot_model_loader = std::make_shared<robot_model_loader::RobotModelLoader>(node, opt);
+
+                // Get a shared_ptr to the RobotModel
+                auto robot_model = robot_model_loader->getModel();
+
+                // Store the RobotModelLoader in a custom deleter for the RobotModel
+                auto robot_model_with_custom_deleter = std::shared_ptr<moveit::core::RobotModel>(
+                    robot_model.get(), 
+                    [robot_model_loader, node](moveit::core::RobotModel*) mutable {
+                        // This will be called when the RobotModel is destroyed
+                        // The RobotModelLoader is captured by the lambda, so it will be destroyed after the RobotModel
+                        RCLCPP_INFO(node->get_logger(), "DESTROYING ROBOT MODEL LOADER");
+                        robot_model_loader.reset();
+                    }
+                );
+
+                return robot_model_with_custom_deleter;
              }
-             xml_file.close();
+             else
+             {
+              RCLCPP_INFO(node->get_logger(), "Set with robot description");
+               robot_model_loader::RobotModelLoader::Options opt(robot_description);
+              RCLCPP_INFO(node->get_logger(), "CREATING ROBOT MODEL LOADER");
+              auto robot_model_loader = std::shared_ptr<robot_model_loader::RobotModelLoader>(
+                  new robot_model_loader::RobotModelLoader(node, opt),
+                  [node](robot_model_loader::RobotModelLoader* p) {
+                      RCLCPP_INFO(node->get_logger(), "DESTROYING ROBOT MODEL LOADER");
+                      delete p;
+                  }
+              );
 
-             urdf::ModelInterfaceSharedPtr urdf_model = urdf::parseURDF(xml_string);
+              // Get a shared_ptr to the RobotModel
+                auto robot_model = robot_model_loader->getModel();
 
-             // Read in SRDF
-             srdf::Model srdf_model;
-             srdf_model.initFile(*urdf_model, srdf_xml_path);
+                // Store the RobotModelLoader in a custom deleter for the RobotModel
+                auto robot_model_with_custom_deleter = std::shared_ptr<moveit::core::RobotModel>(
+                    robot_model.get(), 
+                    [robot_model_loader, node](moveit::core::RobotModel*) mutable {
+                        // This will be called when the RobotModel is destroyed
+                        // The RobotModelLoader is captured by the lambda, so it will be destroyed after the RobotModel
+                        robot_model_loader.reset();
+                    }
+                );
 
-             // Instantiate robot model
-             return std::make_shared<moveit::core::RobotModel>(
-                 urdf_model, std::make_shared<const srdf::Model>(std::move(srdf_model)));
+                return robot_model_with_custom_deleter;
+             }
            }),
-           py::arg("urdf_xml_path"), py::arg("srdf_xml_path"),
+           py::arg("robot"), py::arg("urdf_xml_path") = nullptr, py::arg("srdf_xml_path") = nullptr, py::arg("robot_description") = "robot_description",
            R"(
            Initializes a kinematic model for a robot.
 
