@@ -622,7 +622,7 @@ void PlanningScene::getPlanningSceneDiffMsg(moveit_msgs::msg::PlanningScene& sce
       collision_detection::AllowedCollisionMatrix parent_matrix = parent_->getAllowedCollisionMatrix();
       moveit_msgs::msg::AllowedCollisionMatrix parent_msg = moveit_msgs::msg::AllowedCollisionMatrix();
       parent_matrix.getMessage(parent_msg);
-      if(acm_->compare(parent_msg)) {
+      if(acm_.value().compare(parent_msg)) {
        scene_msg.allowed_collision_matrix = moveit_msgs::msg::AllowedCollisionMatrix(); 
       } else {
        acm_.value().getMessage(scene_msg.allowed_collision_matrix);   

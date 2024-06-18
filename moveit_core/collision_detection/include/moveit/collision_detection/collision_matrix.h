@@ -246,7 +246,7 @@ public:
   /** @brief Print the allowed collision matrix */
   void print(std::ostream& out) const;
 
-  bool compare(moveit_msgs::msg::AllowedCollisionMatrix& acm);
+  bool compare(moveit_msgs::msg::AllowedCollisionMatrix& acm) const ;
   
 private:
   bool getDefaultEntry(const std::string& name1, const std::string& name2,

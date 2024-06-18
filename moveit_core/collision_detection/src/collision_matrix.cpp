@@ -490,7 +490,7 @@ void AllowedCollisionMatrix::print(std::ostream& out) const
   }
 }
 
-bool AllowedCollisionMatrix::compare(moveit_msgs::msg::AllowedCollisionMatrix& msg) {
+bool AllowedCollisionMatrix::compare(moveit_msgs::msg::AllowedCollisionMatrix& msg) const {
   for (std::size_t j = 0; j < msg.entry_names.size(); ++j)
   {
     // Check if entry name is in entries_
