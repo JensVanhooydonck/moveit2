@@ -112,6 +112,7 @@ RobotTrajCont CommandListManager::solve(const planning_scene::PlanningSceneConst
                               // therefore: "i-1".
                               (i > 0 ? radii.at(i - 1) : 0.));
   }
+
   return plan_comp_builder_.build();
 }
 

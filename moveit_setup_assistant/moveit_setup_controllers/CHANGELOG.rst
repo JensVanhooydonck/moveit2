@@ -2,6 +2,19 @@
 Changelog for package moveit_setup_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.11.0 (2024-09-16)
+-------------------
+* Fix key duplication in moveit_setup_assistant for FollowJointTrajectory (`#2959 <https://github.com/moveit/moveit2/issues/2959>`_)
+* Replace deprecated load_yaml with xacro.load_yaml in ros2_control.xacro template (`#2934 <https://github.com/moveit/moveit2/issues/2934>`_)
+* Remove additional word 'hardware' in Moveit Controllers section of MoveIt Setup Assistant (`#2936 <https://github.com/moveit/moveit2/issues/2936>`_)
+* Contributors: Chris Schindlbeck
+
+2.10.0 (2024-06-13)
+-------------------
+* Add allow_nonzero_velocity_at_trajectory_end parameter to exported ros2_controllers config file (`#2751 <https://github.com/moveit/moveit2/issues/2751>`_)
+* CMake format and lint in pre-commit (`#2683 <https://github.com/moveit/moveit2/issues/2683>`_)
+* Contributors: Sebastian Castro, Tyler Weaver
+
 2.9.0 (2024-01-09)
 ------------------
 * Node logging for the rest of MoveIt (`#2599 <https://github.com/ros-planning/moveit2/issues/2599>`_)

@@ -18,7 +18,9 @@ find_package(geometric_shapes REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(moveit_msgs REQUIRED)
-find_package(OCTOMAP REQUIRED)
+# Enforce system version liboctomap-dev
+# https://github.com/moveit/moveit2/issues/2862
+find_package(octomap 1.9.7...<1.10.0 REQUIRED)
 find_package(octomap_msgs REQUIRED)
 find_package(osqp REQUIRED)
 find_package(pluginlib REQUIRED)
@@ -90,6 +92,8 @@ install(
           moveit_robot_model
           moveit_robot_state
           moveit_robot_trajectory
+          moveit_ruckig_filter
+          moveit_ruckig_filter_parameters
           moveit_smoothing_base
           moveit_test_utils
           moveit_trajectory_processing
@@ -114,7 +118,7 @@ ament_export_dependencies(
   geometry_msgs
   kdl_parser
   moveit_msgs
-  OCTOMAP
+  octomap
   octomap_msgs
   osqp
   pluginlib
@@ -141,8 +145,9 @@ pluginlib_export_plugin_description_file(moveit_core
 pluginlib_export_plugin_description_file(
   moveit_core collision_detector_bullet_description.xml)
 pluginlib_export_plugin_description_file(moveit_core
-                                         filter_plugin_butterworth.xml)
-pluginlib_export_plugin_description_file(moveit_core
                                          filter_plugin_acceleration.xml)
+pluginlib_export_plugin_description_file(moveit_core
+                                         filter_plugin_butterworth.xml)
+pluginlib_export_plugin_description_file(moveit_core filter_plugin_ruckig.xml)
 
 ament_package(CONFIG_EXTRAS ConfigExtras.cmake)

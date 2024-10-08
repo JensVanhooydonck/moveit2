@@ -2,6 +2,65 @@
 Changelog for package moveit_core
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.11.0 (2024-09-16)
+-------------------
+* Fix RobotState::getRigidlyConnectedParentLinkModel() (`#2985 <https://github.com/moveit/moveit2/issues/2985>`_)
+* Implement realtime Ruckig jerk-limited smoothing (`#2956 <https://github.com/moveit/moveit2/issues/2956>`_)
+* New implementation for computeCartesianPath() (`#2916 <https://github.com/moveit/moveit2/issues/2916>`_)
+* Don't set reset observer callback & set CB after world\_ is initialized (`#2950 <https://github.com/moveit/moveit2/issues/2950>`_)
+* Deduplicate joint trajectory points in Pilz Move Group Sequence capability (`#2943 <https://github.com/moveit/moveit2/issues/2943>`_)
+* Optimize MOVE_SHAPE operations for FCL (`#3601 <https://github.com/moveit/moveit2/issues/3601>`_)
+* Allow moving of all shapes of an object in one go (`#3599 <https://github.com/moveit/moveit2/issues/3599>`_)
+* Silent "empty quaternion" warning from poseMsgToEigen() (`#3435 <https://github.com/moveit/moveit2/issues/3435>`_)
+* Propagate "clear octomap" actions to monitoring planning scenes (`#3134 <https://github.com/moveit/moveit2/issues/3134>`_)
+* Copy planning scene predicates in the copy constructor (`#2858 <https://github.com/moveit/moveit2/issues/2858>`_)
+* PSM: Correctly handle full planning scene message (`#3610 <https://github.com/moveit/moveit2/issues/3610>`_) (`#2876 <https://github.com/moveit/moveit2/issues/2876>`_), fixes `#3538 <https://github.com/moveit/moveit2/issues/3538>`_/`#3609 <https://github.com/moveit/moveit2/issues/3609>`_
+* Switch to system version of octomap (`#2881 <https://github.com/moveit/moveit2/issues/2881>`_)
+* Contributors: AndyZe, Captain Yoshi, Chris Lalancette, Chris Schindlbeck, FSund, Gaël Écorchard, Robert Haschke, Sebastian Castro, Sebastian Jahr
+
+2.10.0 (2024-06-13)
+-------------------
+* Enforce liboctomap-dev by using a cmake version range
+* Add utility functions to get limits and trajectory message (`#2861 <https://github.com/moveit/moveit2/issues/2861>`_)
+* Migrate ros-planning org to moveit (`#2847 <https://github.com/moveit/moveit2/issues/2847>`_)
+  * Rename github.com/ros-planning -> github.com/moveit
+  * Rename ros-planning.github.io -> moveit.github.io
+  * Rename ros-planning organization in docker and CI workflow files
+  - ghcr.io/ros-planning -> ghcr.io/moveit
+  - github.repository == 'moveit/*''
+* Use std::optional instead of nullptr checking (`#2454 <https://github.com/moveit/moveit2/issues/2454>`_)
+* Enable mdof trajectory execution (`#2740 <https://github.com/moveit/moveit2/issues/2740>`_)
+  * Add RobotTrajectory conversion from MDOF to joints
+  * Convert MDOF trajectories to joint trajectories in planning interfaces
+  * Treat mdof joint variables as common joints in
+  TrajectoryExecutionManager
+  * Convert multi-DOF trajectories to joints in TEM
+  * Revert "Convert MDOF trajectories to joint trajectories in planning interfaces"
+  This reverts commit 885ee2718594859555b73dc341311a859d31216e.
+  * Handle multi-DOF variables in TEM's bound checking
+  * Add parameter to optionally enable multi-dof conversion
+  * Improve error message about unknown controllers
+  * Fix name ordering in JointTrajectory conversion
+  * Improve DEBUG output in TEM
+  * Comment RobotTrajectory test
+  * add acceleration to avoid out of bounds read
+* Fix doc reference to non-existent function (`#2765 <https://github.com/moveit/moveit2/issues/2765>`_)
+* (core) Remove unused python docs folder (`#2746 <https://github.com/moveit/moveit2/issues/2746>`_)
+* Unify log names (`#2720 <https://github.com/moveit/moveit2/issues/2720>`_)
+* (core) Install collision_detector_fcl_plugin (`#2699 <https://github.com/moveit/moveit2/issues/2699>`_)
+  FCL version of acda563
+* Simplify Isometry multiplication benchmarks (`#2628 <https://github.com/moveit/moveit2/issues/2628>`_)
+  With the benchmark library, there is no need to specify an iteration count.
+  Interestingly, 4x4 matrix multiplication is faster than affine*matrix
+* CMake format and lint in pre-commit (`#2683 <https://github.com/moveit/moveit2/issues/2683>`_)
+* Merge pull request `#2660 <https://github.com/moveit/moveit2/issues/2660>`_ from MarqRazz/pr-fix_model_with_collision
+  Fix getLinkModelNamesWithCollisionGeometry to include the base link
+* validate link has parent
+* pre-commit
+* Fix getLinkModelNamesWithCollisionGeometry to include the base link of the planning group
+* Acceleration Limited Smoothing Plugin for Servo (`#2651 <https://github.com/moveit/moveit2/issues/2651>`_)
+* Contributors: Henning Kayser, Marq Rasmussen, Matthijs van der Burgh, Paul Gesel, Robert Haschke, Sebastian Jahr, Shobuj Paul, Tyler Weaver, marqrazz
+
 2.9.0 (2024-01-09)
 ------------------
 * (core) Remove all references to python wrapper from the core pkg (`#2623 <https://github.com/ros-planning/moveit2/issues/2623>`_)

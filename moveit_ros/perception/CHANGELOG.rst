@@ -2,6 +2,27 @@
 Changelog for package moveit_ros_perception
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.11.0 (2024-09-16)
+-------------------
+* Replace obsolete header (`#2978 <https://github.com/moveit/moveit2/issues/2978>`_)
+* Fixed segmentation fault in depth_image_octomap_updater (`#2963 <https://github.com/moveit/moveit2/issues/2963>`_)
+* Fix deprecation warning (`#2922 <https://github.com/moveit/moveit2/issues/2922>`_)
+* Contributors: CihatAltiparmak, Robert Haschke, Sebastian Jahr
+
+2.10.0 (2024-06-13)
+-------------------
+* Fix segmentation fault in mesh_filter/gl_renderer (`#2834 <https://github.com/moveit/moveit2/issues/2834>`_)
+* Migrate ros-planning org to moveit (`#2847 <https://github.com/moveit/moveit2/issues/2847>`_)
+  * Rename github.com/ros-planning -> github.com/moveit
+  * Rename ros-planning.github.io -> moveit.github.io
+  * Rename ros-planning organization in docker and CI workflow files
+  - ghcr.io/ros-planning -> ghcr.io/moveit
+  - github.repository == 'moveit/*''
+* Unify log names (`#2720 <https://github.com/moveit/moveit2/issues/2720>`_)
+  Co-authored-by: Abishalini Sivaraman <abi.gpuram@gmail.com>
+* CMake format and lint in pre-commit (`#2683 <https://github.com/moveit/moveit2/issues/2683>`_)
+* Contributors: CihatAltiparmak, Robert Haschke, Sebastian Jahr, Tyler Weaver
+
 2.9.0 (2024-01-09)
 ------------------
 * (moveit_ros) add missing CYLINDER check (`#2640 <https://github.com/ros-planning/moveit2/issues/2640>`_)

@@ -359,9 +359,19 @@ public:
     setMaxScalingFactor(max_velocity_scaling_factor_, value, "velocity_scaling_factor", 0.1);
   }
 
+  double getMaxVelocityScalingFactor() const
+  {
+    return max_velocity_scaling_factor_;
+  }
+
   void setMaxAccelerationScalingFactor(double value)
   {
     setMaxScalingFactor(max_acceleration_scaling_factor_, value, "acceleration_scaling_factor", 0.1);
+  }
+
+  double getMaxAccelerationScalingFactor() const
+  {
+    return max_acceleration_scaling_factor_;
   }
 
   void setMaxScalingFactor(double& variable, const double target_value, const char* factor_name, double fallback_value)
@@ -850,28 +860,20 @@ public:
   }
 
   double computeCartesianPath(const std::vector<geometry_msgs::msg::Pose>& waypoints, double step,
-                              double jump_threshold, moveit_msgs::msg::RobotTrajectory& msg,
+                              moveit_msgs::msg::RobotTrajectory& msg,
                               const moveit_msgs::msg::Constraints& path_constraints, bool avoid_collisions,
                               moveit_msgs::msg::MoveItErrorCodes& error_code)
   {
     auto req = std::make_shared<moveit_msgs::srv::GetCartesianPath::Request>();
     moveit_msgs::srv::GetCartesianPath::Response::SharedPtr response;
 
-    if (considered_start_state_)
-    {
-      moveit::core::robotStateToRobotStateMsg(*considered_start_state_, req->start_state);
-    }
-    else
-    {
-      req->start_state.is_diff = true;
-    }
+    constructRobotState(req->start_state);
 
     req->group_name = opt_.group_name;
     req->header.frame_id = getPoseReferenceFrame();
     req->header.stamp = getClock()->now();
     req->waypoints = waypoints;
     req->max_step = step;
-    req->jump_threshold = jump_threshold;
     req->path_constraints = path_constraints;
     req->avoid_collisions = avoid_collisions;
     req->link_name = getEndEffectorLink();
@@ -1009,6 +1011,18 @@ public:
     return allowed_planning_time_;
   }
 
+  void constructRobotState(moveit_msgs::msg::RobotState& state) const
+  {
+    if (considered_start_state_)
+    {
+      moveit::core::robotStateToRobotStateMsg(*considered_start_state_, state);
+    }
+    else
+    {
+      state.is_diff = true;
+    }
+  }
+
   void constructMotionPlanRequest(moveit_msgs::msg::MotionPlanRequest& request) const
   {
     request.group_name = opt_.group_name;
@@ -1020,14 +1034,7 @@ public:
     request.planner_id = planner_id_;
     request.workspace_parameters = workspace_parameters_;
 
-    if (considered_start_state_)
-    {
-      moveit::core::robotStateToRobotStateMsg(*considered_start_state_, request.start_state);
-    }
-    else
-    {
-      request.start_state.is_diff = true;
-    }
+    constructRobotState(request.start_state);
 
     if (active_target_ == JOINT)
     {
@@ -1374,6 +1381,11 @@ const std::vector<std::string>& MoveGroupInterface::getNamedTargets() const
   return impl_->getJointModelGroup()->getDefaultStateNames();
 }
 
+const std::shared_ptr<tf2_ros::Buffer>& MoveGroupInterface::getTF() const
+{
+  return impl_->getTF();
+}
+
 moveit::core::RobotModelConstPtr MoveGroupInterface::getRobotModel() const
 {
   return impl_->getRobotModel();
@@ -1441,9 +1453,19 @@ void MoveGroupInterface::setMaxVelocityScalingFactor(double max_velocity_scaling
   impl_->setMaxVelocityScalingFactor(max_velocity_scaling_factor);
 }
 
+double MoveGroupInterface::getMaxVelocityScalingFactor() const
+{
+  return impl_->getMaxVelocityScalingFactor();
+}
+
 void MoveGroupInterface::setMaxAccelerationScalingFactor(double max_acceleration_scaling_factor)
 {
   impl_->setMaxAccelerationScalingFactor(max_acceleration_scaling_factor);
+}
+
+double MoveGroupInterface::getMaxAccelerationScalingFactor() const
+{
+  return impl_->getMaxAccelerationScalingFactor();
 }
 
 moveit::core::MoveItErrorCode MoveGroupInterface::asyncMove()
@@ -1530,31 +1552,29 @@ moveit::core::MoveItErrorCode MoveGroupInterface::plan(Plan& plan)
 //}
 
 double MoveGroupInterface::computeCartesianPath(const std::vector<geometry_msgs::msg::Pose>& waypoints, double eef_step,
-                                                double jump_threshold, moveit_msgs::msg::RobotTrajectory& trajectory,
-                                                bool avoid_collisions, moveit_msgs::msg::MoveItErrorCodes* error_code)
+                                                moveit_msgs::msg::RobotTrajectory& trajectory, bool avoid_collisions,
+                                                moveit_msgs::msg::MoveItErrorCodes* error_code)
 {
   moveit_msgs::msg::Constraints path_constraints_tmp;
-  return computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory, moveit_msgs::msg::Constraints(),
-                              avoid_collisions, error_code);
+  return computeCartesianPath(waypoints, eef_step, trajectory, moveit_msgs::msg::Constraints(), avoid_collisions,
+                              error_code);
 }
 
 double MoveGroupInterface::computeCartesianPath(const std::vector<geometry_msgs::msg::Pose>& waypoints, double eef_step,
-                                                double jump_threshold, moveit_msgs::msg::RobotTrajectory& trajectory,
+                                                moveit_msgs::msg::RobotTrajectory& trajectory,
                                                 const moveit_msgs::msg::Constraints& path_constraints,
                                                 bool avoid_collisions, moveit_msgs::msg::MoveItErrorCodes* error_code)
 {
   if (error_code)
   {
-    return impl_->computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory, path_constraints,
-                                       avoid_collisions, *error_code);
+    return impl_->computeCartesianPath(waypoints, eef_step, trajectory, path_constraints, avoid_collisions, *error_code);
   }
   else
   {
     moveit_msgs::msg::MoveItErrorCodes err_tmp;
     err_tmp.val = moveit_msgs::msg::MoveItErrorCodes::SUCCESS;
     moveit_msgs::msg::MoveItErrorCodes& err = error_code ? *error_code : err_tmp;
-    return impl_->computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory, path_constraints,
-                                       avoid_collisions, err);
+    return impl_->computeCartesianPath(waypoints, eef_step, trajectory, path_constraints, avoid_collisions, err);
   }
 }
 
@@ -2324,6 +2344,11 @@ bool MoveGroupInterface::attachObject(const std::string& object, const std::stri
 bool MoveGroupInterface::detachObject(const std::string& name)
 {
   return impl_->detachObject(name);
+}
+
+void MoveGroupInterface::constructRobotState(moveit_msgs::msg::RobotState& state)
+{
+  impl_->constructRobotState(state);
 }
 
 void MoveGroupInterface::constructMotionPlanRequest(moveit_msgs::msg::MotionPlanRequest& goal_out)

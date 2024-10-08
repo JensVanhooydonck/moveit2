@@ -242,7 +242,18 @@ public:
   RobotTrajectory& append(const RobotTrajectory& source, double dt, size_t start_index = 0,
                           size_t end_index = std::numeric_limits<std::size_t>::max());
 
-  void swap(robot_trajectory::RobotTrajectory& other);
+  void swap(robot_trajectory::RobotTrajectory& other) noexcept;
+
+  /**
+   * \brief Remove a point from the trajectory
+   * \param index - the index to remove
+   */
+  RobotTrajectory& removeWayPoint(std::size_t index)
+  {
+    waypoints_.erase(waypoints_.begin() + index);
+    duration_from_previous_.erase(duration_from_previous_.begin() + index);
+    return *this;
+  }
 
   RobotTrajectory& clear()
   {
