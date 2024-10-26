@@ -90,8 +90,8 @@ plan(std::shared_ptr<moveit_cpp::PlanningComponent>& planning_component,
     else
     {
       return planning_component->plan(*const_multi_plan_parameters,
-                                      moveit::planning_pipeline_interfaces::getShortestSolution, nullptr,
-                                      planning_scene);
+                                      moveit::planning_pipeline_interfaces::getShortestSolution,
+                                      moveit::planning_pipeline_interfaces::stopAtFirstSolution, planning_scene);
     }
   }
   else

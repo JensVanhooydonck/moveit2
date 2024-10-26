@@ -51,6 +51,7 @@
 #include "moveit_cpp.hpp"
 #include "../planning_scene_monitor/planning_scene_monitor.hpp"
 #include "../../moveit_core/planning_interface/planning_response.hpp"
+#include <moveit/planning_pipeline_interfaces/stopping_criterion_functions.hpp>
 
 namespace py = pybind11;
 
