@@ -42,6 +42,8 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <moveit/utils/logger.hpp>
 
+#include <rclcpp/qos.hpp>
+
 namespace trajectory_execution_manager
 {
 
@@ -165,7 +167,8 @@ void TrajectoryExecutionManager::initialize()
         rclcpp::NodeOptions opt;
         opt.allow_undeclared_parameters(true);
         opt.automatically_declare_parameters_from_overrides(true);
-        controller_mgr_node_ = std::make_shared<rclcpp::Node>("moveit_simple_controller_manager", opt);
+        controller_mgr_node_ =
+            std::make_shared<rclcpp::Node>("moveit_simple_controller_manager", node_->get_namespace(), opt);
 
         auto all_params = node_->get_node_parameters_interface()->get_parameter_overrides();
         for (const auto& param : all_params)
@@ -199,7 +202,7 @@ void TrajectoryExecutionManager::initialize()
   auto options = rclcpp::SubscriptionOptions();
   options.callback_group = callback_group;
   event_topic_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
-      EXECUTION_EVENT_TOPIC, rclcpp::SystemDefaultsQoS(),
+      EXECUTION_EVENT_TOPIC, rclcpp::ServicesQoS(),
       [this](const std_msgs::msg::String::ConstSharedPtr& event) { return receiveEvent(event); }, options);
 
   controller_mgr_node_->get_parameter("trajectory_execution.execution_duration_monitoring",
