@@ -482,7 +482,7 @@ void PlanningSceneMonitor::scenePublishingThread()
     moveit_msgs::msg::PlanningScene msg;
     bool publish_msg = false;
     bool is_full = false;
-    rclcpp::Rate rate(publish_planning_scene_frequency_);
+    rclcpp::WallRate rate(publish_planning_scene_frequency_);
     {
       std::unique_lock<std::shared_mutex> ulock(scene_update_mutex_);
       while (new_scene_update_ == UPDATE_NONE && publish_planning_scene_)
@@ -546,6 +546,9 @@ void PlanningSceneMonitor::scenePublishingThread()
       planning_scene_publisher_->publish(msg);
       if (is_full)
         RCLCPP_DEBUG(logger_, "Published full planning scene: '%s'", msg.name.c_str());
+      // finish thread on rclcpp shutdown (otherwise rate.sleep() will crash)
+      if (!rclcpp::ok())
+        break;
       rate.sleep();
     }
   } while (publish_planning_scene_);
