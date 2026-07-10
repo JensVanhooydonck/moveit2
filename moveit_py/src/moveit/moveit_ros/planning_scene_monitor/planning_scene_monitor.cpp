@@ -149,6 +149,7 @@ void initPlanningSceneMonitor(py::module& m)
 	   )")
 
       .def("wait_for_current_robot_state", &planning_scene_monitor::PlanningSceneMonitor::waitForCurrentRobotState,
+           py::call_guard<py::gil_scoped_release>(),
            R"(
 	   Waits for the current robot state to be received.
 	   )")

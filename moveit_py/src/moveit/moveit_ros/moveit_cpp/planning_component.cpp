@@ -333,6 +333,11 @@ void initPlanningComponent(py::module& m)
            py::arg("multi_plan_parameters") = nullptr, py::arg("planning_scene") = nullptr,
            py::arg("solution_selection_function") = nullptr, py::arg("stopping_criterion_callback") = nullptr,
            py::return_value_policy::move,
+           // Release the GIL for the (long, CPU-bound, pure-C++) solve. Without this the
+           // solve holds the GIL for its entire duration, freezing every Python thread in
+           // the process. NOTE: callers must NOT run plan() concurrently on the SAME
+           // PlanningComponent now that the GIL no longer serializes them.
+           py::call_guard<py::gil_scoped_release>(),
            R"(
            Plan a motion plan using the current start and goal states.
 

@@ -138,6 +138,11 @@ void initRobotTrajectory(py::module& m)
       .def("apply_totg_time_parameterization", &trajectory_processing::applyTOTGTimeParameterization,
            py::arg("velocity_scaling_factor"), py::arg("acceleration_scaling_factor"), py::kw_only(),
            py::arg("path_tolerance") = 0.1, py::arg("resample_dt") = 0.1, py::arg("min_angle_change") = 0.001,
+           // CPU-bound time-parameterization over the whole trajectory — release the GIL
+           // so it doesn't freeze the event loops. It mutates only the per-motion
+           // RobotTrajectory (`self`), which is not shared across threads here, so this is
+           // safe.
+           py::call_guard<py::gil_scoped_release>(),
            R"(
            Adds time parameterization to the trajectory using the Time-Optimal Trajectory Generation (TOTG) algorithm.
 
@@ -153,6 +158,9 @@ void initRobotTrajectory(py::module& m)
       .def("apply_ruckig_smoothing", &trajectory_processing::applyRuckigSmoothing, py::arg("velocity_scaling_factor"),
            py::arg("acceleration_scaling_factor"), py::kw_only(), py::arg("mitigate_overshoot") = false,
            py::arg("overshoot_threshold") = 0.01,
+           // CPU-bound smoothing over the whole trajectory — release the GIL (mutates only
+           // the per-motion RobotTrajectory `self`, not shared across threads).
+           py::call_guard<py::gil_scoped_release>(),
            R"(
            Applies Ruckig smoothing to the trajectory.
 

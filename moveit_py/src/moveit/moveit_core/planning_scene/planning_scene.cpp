@@ -320,6 +320,11 @@ void initPlanningScene(py::module& m)
                              std::vector<std::size_t>*>(&planning_scene::PlanningScene::isPathValid, py::const_),
            py::arg("trajectory"), py::arg("joint_model_group_name"), py::arg("verbose") = false,
            py::arg("invalid_index") = nullptr,
+           // CPU-bound per-waypoint collision/feasibility check — release the GIL so this
+           // const check (run once per motion before execution) doesn't freeze the event
+           // loops. Arguments are converted while the GIL is held; only the C++ body runs
+           // released.
+           py::call_guard<py::gil_scoped_release>(),
            R"(
            Check if a given path is valid. Each state is checked for validity (collision avoidance and feasibility)
 
