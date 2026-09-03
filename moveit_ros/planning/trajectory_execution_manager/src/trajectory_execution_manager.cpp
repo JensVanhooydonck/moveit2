@@ -1557,7 +1557,25 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
         }
       }
       else
-        handle->waitForExecution();
+      {
+        // Bounded poll instead of an infinite wait: after cancelExecution(),
+        // the FollowJointTrajectory result future occasionally never resolves
+        // (result-delivery race), and an infinite wait here then deadlocks
+        // stopExecution()'s join of this thread — wedging every motion queued
+        // behind this manager. stopExecution() sets execution_complete_ ahead
+        // of time, so a stuck post-cancel wait exits within a second; a
+        // healthy long trajectory just keeps polling.
+        while (!handle->waitForExecution(rclcpp::Duration::from_seconds(1.0)))
+        {
+          if (execution_complete_)
+          {
+            RCLCPP_WARN_STREAM(logger_, "Controller handle "
+                                            << handle->getName()
+                                            << " did not report a result after the stop request; abandoning wait.");
+            break;
+          }
+        }
+      }
 
       // if something made the trajectory stop, we stop this thread too
       if (execution_complete_)
