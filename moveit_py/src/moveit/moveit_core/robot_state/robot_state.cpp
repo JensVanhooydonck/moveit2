@@ -442,6 +442,13 @@ void initRobotState(py::module& m)
              const std::string& tip,
              double timeout) { return self->setFromIK(self->getJointModelGroup(group), pose, tip, timeout); },
           py::arg("joint_model_group_name"), py::arg("geometry_pose"), py::arg("tip_name"), py::arg("timeout") = 0.0,
+          // CPU-bound C++ IK solve — release the GIL so it cannot freeze other threads.
+          // Callers loop this thousands of times (get_all_possible_joint_positions_for_pose
+          // runs up to `tries` solves), and without this every solve holds the GIL, so the
+          // event loops and the job scheduler stall for the whole search. Arguments are
+          // converted while the GIL is held; only the C++ body runs released. Safe: this
+          // overload passes no validity callback, so it never re-enters Python.
+          py::call_guard<py::gil_scoped_release>(),
           R"(
            Sets the state of the robot to the one that results from solving the inverse kinematics for the specified group.
 

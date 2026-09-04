@@ -185,12 +185,31 @@ void initPlanningSceneMonitor(py::module& m)
                scene (moveit_msgs.msg.PlanningScene): The new planning scene message.
            )")
 
+      // These two BLOCK: the returned context manager's constructor builds a
+      // LockedPlanningScene{RO,RW}, which acquires the scene mutex. Without a call_guard
+      // that wait happens while holding the GIL, so a Python thread waiting for the scene
+      // monitor to finish an update freezes EVERY thread in the process — the scene is
+      // written hardest during motion (/joint_states floods in), which is exactly when
+      // other threads are reading it. Measured: ~0.7-1.4s process-wide stalls, which
+      // inflate job durations and make trajectory triggers fire late.
+      //
+      // Releasing here matches what the other blocking bindings already do
+      // (wait_for_execution, execute_and_wait, wait_for_current_robot_state, plan). It
+      // also removes a deadlock: a thread blocked on the mutex while holding the GIL
+      // cannot be freed by a mutex holder that needs the GIL to make progress.
+      //
+      // The guard is destroyed before the return value is converted, so the GIL is held
+      // again by the time pybind11 casts the context manager back to Python.
+      // __enter__/__exit__ need no guard: __enter__ only returns the already-locked
+      // scene, and __exit__ only drops the pointer.
       .def("read_only", &moveit_py::bind_planning_scene_monitor::readOnly,
+           py::call_guard<py::gil_scoped_release>(),
            R"(
            Returns a read-only context manager for the planning scene.
            )")
 
       .def("read_write", &moveit_py::bind_planning_scene_monitor::readWrite,
+           py::call_guard<py::gil_scoped_release>(),
            R"(
            Returns a read-write context manager for the planning scene.
            )");

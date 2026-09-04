@@ -42,6 +42,10 @@
 #include <moveit/controller_manager/controller_manager.hpp>
 #include <moveit/macros/class_forward.hpp>
 #include <memory>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
+#include <atomic>
 
 namespace moveit_simple_controller_manager
 {
@@ -99,12 +103,31 @@ public:
       return false;
     if (!done_)
     {
+      if (!current_goal_)
+      {
+        // Nothing accepted by the server yet (or the goal was abandoned): there is no goal handle to cancel.
+        RCLCPP_WARN_STREAM(logger_, "Cancel requested for " << name_ << " but no goal handle is held; nothing to cancel");
+        last_exec_ = moveit_controller_manager::ExecutionStatus::PREEMPTED;
+        done_ = true;
+        return true;
+      }
       RCLCPP_INFO_STREAM(logger_, "Cancelling execution for " << name_);
       auto cancel_result_future = controller_action_client_->async_cancel_goal(current_goal_);
 
-      const auto& result = cancel_result_future.get();
-      if (!result)
-        RCLCPP_ERROR(logger_, "Failed to cancel goal");
+      // Bounded wait: an unresponsive action server (crashed/hung controller)
+      // otherwise blocks this .get() forever — and cancelExecution runs inside
+      // stopExecutionInternal() while the TEM holds execution_state_mutex_, so
+      // an infinite wait here wedges every motion on the manager.
+      if (cancel_result_future.wait_for(std::chrono::seconds(5)) != std::future_status::ready)
+      {
+        RCLCPP_ERROR(logger_, "Cancel response not received within 5s; abandoning cancel wait");
+      }
+      else
+      {
+        const auto& result = cancel_result_future.get();
+        if (!result)
+          RCLCPP_ERROR(logger_, "Failed to cancel goal");
+      }
 
       last_exec_ = moveit_controller_manager::ExecutionStatus::PREEMPTED;
       done_ = true;
@@ -121,50 +144,27 @@ public:
 
   /**
    * @brief Blocks waiting for the action result to be received.
-   * @param timeout Duration to wait for a result before failing. Default value indicates no timeout.
+   *
+   * The result callback is registered exactly once per goal, inside sendGoal(); this function only waits on the
+   * flag that callback sets. It is therefore safe to call repeatedly with short timeouts (the trajectory execution
+   * manager polls it once per second). The previous implementation re-registered a result callback with
+   * rclcpp_action on every call, which raced with result delivery: rclcpp_action invokes and clears the registered
+   * callback once, so a poll that arrived between delivery and goal-handle erasure registered a callback that could
+   * never fire and then waited on it forever (FryStock wedge, 2026-09-03).
+   *
+   * @param timeout Duration to wait for a result before failing. A negative value means no timeout.
    * @return True if a result was received, false on timeout.
    */
   bool waitForExecution(const rclcpp::Duration& timeout = rclcpp::Duration::from_seconds(-1.0)) override
   {
-    auto result_callback_done = std::make_shared<std::promise<bool>>();
-    auto result_future = controller_action_client_->async_get_result(
-        current_goal_, [this, result_callback_done](const auto& wrapped_result) {
-          controllerDoneCallback(wrapped_result);
-          result_callback_done->set_value(true);
-        });
+    std::unique_lock<std::mutex> lock(result_mutex_);
     if (timeout < std::chrono::nanoseconds(0))
     {
-      result_future.wait();
+      result_cv_.wait(lock, [this] { return result_received_; });
+      return true;
     }
-    else
-    {
-      std::future_status status;
-      if (node_->get_parameter("use_sim_time").as_bool())
-      {
-        const auto start = node_->now();
-        do
-        {
-          status = result_future.wait_for(50ms);
-          if ((status == std::future_status::timeout) && ((node_->now() - start) > timeout))
-          {
-            RCLCPP_WARN(logger_, "waitForExecution timed out");
-            return false;
-          }
-        } while (status == std::future_status::timeout);
-      }
-      else
-      {
-        status = result_future.wait_for(timeout.to_chrono<std::chrono::duration<double>>());
-        if (status == std::future_status::timeout)
-        {
-          RCLCPP_WARN(logger_, "waitForExecution timed out");
-          return false;
-        }
-      }
-    }
-    // To accommodate for the delay after the future for the result is ready and the time controllerDoneCallback takes to finish
-    result_callback_done->get_future().wait();
-    return true;
+    return result_cv_.wait_for(lock, timeout.to_chrono<std::chrono::nanoseconds>(),
+                               [this] { return result_received_; });
   }
 
   moveit_controller_manager::ExecutionStatus getLastExecutionStatus() override
@@ -211,6 +211,105 @@ protected:
     {
       return name_ + "/" + namespace_;
     }
+  }
+
+  /**
+   * @brief Send a goal to the action server and wait (bounded) for it to be accepted or rejected.
+   *
+   * Registers the result callback once, through SendGoalOptions, so that rclcpp_action delivers the result to
+   * controllerDoneCallback() exactly once and waitForExecution() never has to touch the action client again.
+   * The wait for the goal response is bounded: an action server that never answers used to block the trajectory
+   * execution manager's worker thread forever (and with it every motion on the manager). If the server accepts the
+   * goal after we gave up, the response callback cancels it so the controller does not move unowned.
+   *
+   * @param goal The goal to send.
+   * @param send_goal_options Options; goal_response_callback and feedback_callback are honoured, result_callback is
+   *        overwritten.
+   * @return True if the goal was accepted, false if it was rejected or no response arrived in time.
+   */
+  bool sendGoal(const typename T::Goal& goal, typename rclcpp_action::Client<T>::SendGoalOptions send_goal_options)
+  {
+    const uint64_t seq = ++goal_seq_;
+    {
+      std::lock_guard<std::mutex> lock(result_mutex_);
+      result_received_ = false;
+      goal_abandoned_ = false;
+    }
+    current_goal_.reset();
+    done_ = false;
+    last_exec_ = moveit_controller_manager::ExecutionStatus::RUNNING;
+
+    send_goal_options.result_callback =
+        [this, seq](const typename rclcpp_action::ClientGoalHandle<T>::WrappedResult& wrapped_result) {
+          if (seq != goal_seq_)
+          {
+            RCLCPP_WARN_STREAM(logger_, "Ignoring late result for a superseded goal on " << name_);
+            return;
+          }
+          controllerDoneCallback(wrapped_result);
+          {
+            std::lock_guard<std::mutex> lock(result_mutex_);
+            result_received_ = true;
+          }
+          result_cv_.notify_all();
+        };
+
+    auto user_response_cb = send_goal_options.goal_response_callback;
+    send_goal_options.goal_response_callback =
+        [this, seq, user_response_cb](const typename rclcpp_action::ClientGoalHandle<T>::SharedPtr& goal_handle) {
+          if (user_response_cb)
+            user_response_cb(goal_handle);
+          bool abandoned;
+          {
+            std::lock_guard<std::mutex> lock(result_mutex_);
+            abandoned = goal_abandoned_ && seq == goal_seq_;
+          }
+          if (abandoned && goal_handle)
+          {
+            RCLCPP_ERROR_STREAM(logger_, "Goal for " << name_ << " was accepted after we stopped waiting for the "
+                                                          "response; cancelling it so the controller does not run "
+                                                          "an unowned goal");
+            controller_action_client_->async_cancel_goal(goal_handle);
+          }
+        };
+
+    auto goal_handle_future = controller_action_client_->async_send_goal(goal, send_goal_options);
+    if (goal_handle_future.wait_for(GOAL_RESPONSE_TIMEOUT) != std::future_status::ready)
+    {
+      RCLCPP_ERROR_STREAM(logger_, "No goal response from " << getActionName() << " within "
+                                                             << std::chrono::duration_cast<std::chrono::seconds>(
+                                                                    GOAL_RESPONSE_TIMEOUT)
+                                                                    .count()
+                                                             << "s; abandoning the goal");
+      {
+        std::lock_guard<std::mutex> lock(result_mutex_);
+        goal_abandoned_ = true;
+        result_received_ = true;  // nothing will ever be delivered for this goal to a waiter
+      }
+      // The response may have landed between our timeout and the flag above; if so, cancel it here.
+      if (goal_handle_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+      {
+        auto late_handle = goal_handle_future.get();
+        if (late_handle)
+          controller_action_client_->async_cancel_goal(late_handle);
+      }
+      last_exec_ = moveit_controller_manager::ExecutionStatus::ABORTED;
+      done_ = true;
+      return false;
+    }
+    current_goal_ = goal_handle_future.get();
+    if (!current_goal_)
+    {
+      RCLCPP_ERROR_STREAM(logger_, "Goal was rejected by server: " << getActionName());
+      {
+        std::lock_guard<std::mutex> lock(result_mutex_);
+        result_received_ = true;
+      }
+      last_exec_ = moveit_controller_manager::ExecutionStatus::ABORTED;
+      done_ = true;
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -273,6 +372,33 @@ protected:
    * @brief Current goal that has been sent to the action server.
    */
   typename rclcpp_action::ClientGoalHandle<T>::SharedPtr current_goal_;
+
+  /**
+   * @brief How long sendGoal() waits for the action server to accept or reject a goal.
+   */
+  static constexpr std::chrono::seconds GOAL_RESPONSE_TIMEOUT{ 10 };
+
+  /**
+   * @brief Guards result_received_ and goal_abandoned_; paired with result_cv_.
+   */
+  std::mutex result_mutex_;
+  std::condition_variable result_cv_;
+
+  /**
+   * @brief Set (once, by the result callback registered in sendGoal) when the result of the current goal arrived, or
+   * when there is no goal whose result could still arrive. Initially true: nothing is pending.
+   */
+  bool result_received_ = true;
+
+  /**
+   * @brief Set when sendGoal() gave up waiting for the goal response; a late acceptance is then cancelled.
+   */
+  bool goal_abandoned_ = false;
+
+  /**
+   * @brief Monotonic goal counter so late callbacks of a superseded goal are ignored.
+   */
+  std::atomic<uint64_t> goal_seq_{ 0 };
 };
 
 }  // namespace moveit_simple_controller_manager

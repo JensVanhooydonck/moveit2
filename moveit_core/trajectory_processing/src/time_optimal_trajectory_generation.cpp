@@ -1175,7 +1175,7 @@ bool TimeOptimalTrajectoryGeneration::doTimeParameterizationCalculations(robot_t
 
   if (hasMixedJointTypes(group))
   {
-    RCLCPP_WARN(getLogger(), "There is a combination of revolute and prismatic joints in the robot model. TOTG's "
+    RCLCPP_INFO(getLogger(), "There is a combination of revolute and prismatic joints in the robot model. TOTG's "
                              "`path_tolerance` will not function correctly.");
   }
 

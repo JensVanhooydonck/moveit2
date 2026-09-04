@@ -83,18 +83,8 @@ bool FollowJointTrajectoryControllerHandle::sendTrajectory(const moveit_msgs::ms
         }
       };
 
-  done_ = false;
-  last_exec_ = moveit_controller_manager::ExecutionStatus::RUNNING;
-
-  // Send goal
-  auto current_goal_future = controller_action_client_->async_send_goal(goal, send_goal_options);
-  current_goal_ = current_goal_future.get();
-  if (!current_goal_)
-  {
-    RCLCPP_ERROR(logger_, "Goal was rejected by server");
-    return false;
-  }
-  return true;
+  // Send goal; registers the result callback once and bounds the wait for the goal response.
+  return sendGoal(goal, send_goal_options);
 }
 
 // TODO(JafarAbdi): Revise parameter lookup
