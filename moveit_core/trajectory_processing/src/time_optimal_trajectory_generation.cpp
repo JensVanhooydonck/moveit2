@@ -407,6 +407,27 @@ std::optional<Trajectory> Trajectory::create(const Path& path, const Eigen::Vect
     ++it;
   }
 
+  // Drop degenerate steps. A switching point that lands (almost) on an integration step
+  // leaves a segment only femtoseconds long (or even slightly negative); getVelocity() and
+  // getAcceleration() divide by the segment duration, so a resample instant inside it
+  // returned an acceleration of ~1e11 (seen with velocity scaling float32(0.1): one 1.4 s
+  // waypoint with a = 4.5e11, which made the controller's quintic spline jump to ~1e5 m
+  // for one cycle).
+  constexpr double MIN_SEGMENT_DURATION = 1e-6;
+  previous = output.trajectory_.begin();
+  it = std::next(previous);
+  while (it != output.trajectory_.end())
+  {
+    const auto next = std::next(it);
+    if (next != output.trajectory_.end() && it->time_ - previous->time_ < MIN_SEGMENT_DURATION)
+    {
+      it = output.trajectory_.erase(it);
+      continue;
+    }
+    previous = it;
+    it = next;
+  }
+
   return output;
 }
 
